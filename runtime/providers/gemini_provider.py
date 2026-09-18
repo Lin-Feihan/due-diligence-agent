@@ -60,13 +60,19 @@ def normalize_url_citation(
         return None
 
     url = (
-        data.get("url")
-        or getattr(
-            annotation,
-            "url",
-            None
-        )
+    data.get("url")
+    or data.get("uri")
+    or getattr(
+        annotation,
+        "url",
+        None
     )
+    or getattr(
+        annotation,
+        "uri",
+        None
+    )
+)
 
     if not url:
         return None
