@@ -235,12 +235,15 @@ class OpenAIDeepResearchProvider(
                 )
 
                 response = (
-                    client
-                    .responses
-                    .retrieve(
-                        response.id
-                    )
-                )
+    client
+    .responses
+    .retrieve(
+        response.id,
+        include=[
+            "web_search_call.action.sources"
+        ],
+    )
+)
 
             if (
                 response.status
