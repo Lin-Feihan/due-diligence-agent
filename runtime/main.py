@@ -326,6 +326,16 @@ def choose_provider_model(
     return provider_config
 
 
+def print_saved_artifact(
+    label,
+    path
+):
+    if path is not None:
+        print(
+            f"{label}: {path}"
+        )
+
+
 def main():
     config = load_config()
 
@@ -398,7 +408,8 @@ def main():
     print()
 
     try:
-        report = run_agent(
+
+        result = run_agent(
             settings=settings,
             provider=provider,
         )
@@ -416,7 +427,7 @@ def main():
         )
 
         report_paths = save_report(
-            report=report,
+            result=result,
             target_company=settings[
                 "target_company"
             ],
@@ -435,29 +446,78 @@ def main():
         print()
 
         print(
-            "Reports saved:"
+            "Artifacts saved:"
+        )
+
+        print_saved_artifact(
+            "Markdown",
+            report_paths.get(
+                "markdown"
+            )
+        )
+
+        print_saved_artifact(
+            "Evidence JSON",
+            report_paths.get(
+                "evidence"
+            )
+        )
+
+        print_saved_artifact(
+            "DOCX",
+            report_paths.get(
+                "docx"
+            )
+        )
+
+        print_saved_artifact(
+            "PDF",
+            report_paths.get(
+                "pdf"
+            )
+        )
+
+        warnings = (
+            report_paths.get(
+                "warnings",
+                []
+            )
+            or []
+        )
+
+        if warnings:
+            print()
+            print(
+                "Completed with warnings:"
+            )
+
+            for warning in warnings:
+                print(
+                    f"- {warning}"
+                )
+
+        print()
+        print(
+            "Evidence captured:"
         )
 
         print(
-            f"Markdown: "
-            f"{report_paths['markdown']}"
+            f"- Citations: "
+            f"{len(result.citations)}"
         )
 
         print(
-            f"DOCX: "
-            f"{report_paths['docx']}"
-        )
-
-        print(
-            f"PDF: "
-            f"{report_paths['pdf']}"
+            f"- Sources: "
+            f"{len(result.sources)}"
         )
 
     except Exception as exc:
+
         print()
         print(
             "Agent run failed."
         )
+
         print(
             str(exc)
         )
