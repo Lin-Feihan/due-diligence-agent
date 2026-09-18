@@ -1,0 +1,6 @@
+openai
+google-genai
+perplexityai
+PyYAML
+python-docx
+docx2pdf
