@@ -212,6 +212,11 @@ tempCodeRunnerFile.py
 # Marimo
 marimo/_static/
 marimo/_lsp/
+# Temporary file for partial code execution
+tempCodeRunnerFile.py
+
+# Generated research outputs
+output/
 __marimo__/
 
 # Streamlit
