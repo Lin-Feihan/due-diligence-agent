@@ -1,3 +1,5 @@
+import httpx
+
 from perplexity import Perplexity
 
 from .base import (
@@ -194,9 +196,23 @@ class PerplexityDeepResearchProvider(
             "deep-research"
         )
 
-        client = Perplexity(
-            api_key=self.api_key
-        )
+        timeout = self.config.get(
+    "timeout_seconds",
+    3600
+)
+
+max_retries = self.config.get(
+    "max_retries",
+    3
+)
+
+client = Perplexity(
+    api_key=self.api_key,
+    timeout=httpx.Timeout(
+        timeout
+    ),
+    max_retries=max_retries,
+)
 
         try:
 
