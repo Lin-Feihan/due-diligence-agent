@@ -10,9 +10,7 @@ from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 from docx2pdf import convert
 
-from runtime.providers.base import (
-    ResearchResult
-)
+from runtime.providers.base import ResearchResult
 
 
 REPO_ROOT = (
@@ -41,11 +39,6 @@ def safe_filename(value):
 
 
 def normalize_text(text):
-    """
-    Normalize punctuation that can cause
-    inconsistent rendering across PDF engines.
-    """
-
     replacements = {
         "\u2010": "-",
         "\u2011": "-",
@@ -108,16 +101,77 @@ def save_markdown(
     return path
 
 
+def append_source_appendix(
+    report,
+    sources
+):
+    """
+    Append source metadata when citations
+    are available but not rendered inline.
+    """
+
+    if not sources:
+        return report
+
+    existing_urls = set(
+        re.findall(
+            r"https?://\S+",
+            report
+        )
+    )
+
+    appendix = [
+        "",
+        "",
+        "## Source Metadata Appendix",
+        "",
+        "The following sources were identified "
+        "during the research process.",
+        "",
+    ]
+
+    index = 1
+
+    for source in sources:
+
+        url = source.get(
+            "url"
+        )
+
+        if not url:
+            continue
+
+        if url in existing_urls:
+            continue
+
+        title = (
+            source.get("title")
+            or "Untitled source"
+        )
+
+        appendix.append(
+            f"{index}. {title} - {url}"
+        )
+
+        index += 1
+
+    if index == 1:
+        return report
+
+    return (
+        report
+        + "\n"
+        + "\n".join(
+            appendix
+        )
+    )
+
+
 def save_evidence_json(
     result,
     filename,
     output_directory="output"
 ):
-    """
-    Save provider citations, sources,
-    and research metadata as JSON.
-    """
-
     output_dir = (
         get_output_directory(
             output_directory
@@ -130,10 +184,17 @@ def save_evidence_json(
     )
 
     evidence = {
-        "provider": result.provider,
-        "citations": result.citations,
-        "sources": result.sources,
-        "metadata": result.metadata,
+        "provider":
+            result.provider,
+
+        "citations":
+            result.citations,
+
+        "sources":
+            result.sources,
+
+        "metadata":
+            result.metadata,
     }
 
     path.write_text(
@@ -173,6 +234,7 @@ def set_cell_shading(
 
 
 def set_repeat_table_header(row):
+
     tr_pr = (
         row._tr
         .get_or_add_trPr()
@@ -197,10 +259,13 @@ def format_run(
     font_size=10.5,
     bold=False
 ):
+
     run.font.name = "Arial"
+
     run.font.size = Pt(
         font_size
     )
+
     run.bold = bold
 
 
@@ -209,10 +274,6 @@ def add_inline_text(
     text,
     font_size=10.5
 ):
-    """
-    Minimal Markdown inline formatter.
-    Supports **bold** text.
-    """
 
     parts = re.split(
         r"(\*\*.*?\*\*)",
@@ -220,36 +281,38 @@ def add_inline_text(
     )
 
     for part in parts:
+
         if not part:
             continue
 
         if (
             part.startswith("**")
             and part.endswith("**")
-            and len(part) >= 4
         ):
+
             run = paragraph.add_run(
                 part[2:-2]
             )
 
             format_run(
                 run,
-                font_size=font_size,
-                bold=True
+                font_size,
+                True
             )
 
         else:
+
             run = paragraph.add_run(
                 part
             )
 
             format_run(
                 run,
-                font_size=font_size
+                font_size
             )
 
-
 def configure_document(document):
+
     section = (
         document.sections[0]
     )
@@ -281,41 +344,10 @@ def configure_document(document):
         10.5
     )
 
-    normal.paragraph_format.space_after = Pt(
-        6
-    )
-
-    normal.paragraph_format.line_spacing = 1.15
-
-    heading_sizes = {
-        "Title": 20,
-        "Heading 1": 15,
-        "Heading 2": 12.5,
-        "Heading 3": 11,
-        "Heading 4": 10.5,
-    }
-
-    for style_name, size in (
-        heading_sizes.items()
-    ):
-        style = (
-            document.styles[
-                style_name
-            ]
-        )
-
-        style.font.name = "Arial"
-        style.font.size = Pt(
-            size
-        )
-
-        style.font.bold = True
-
 
 def is_table_separator(line):
-    stripped = (
-        line.strip()
-    )
+
+    stripped = line.strip()
 
     if not (
         stripped.startswith("|")
@@ -324,18 +356,16 @@ def is_table_separator(line):
         return False
 
     cells = [
-        cell.strip()
-        for cell in (
+        x.strip()
+        for x in (
             stripped
             .strip("|")
             .split("|")
         )
     ]
 
-    if not cells:
-        return False
-
     for cell in cells:
+
         if not re.fullmatch(
             r":?-{3,}:?",
             cell
@@ -346,10 +376,12 @@ def is_table_separator(line):
 
 
 def parse_table_row(line):
+
     return [
-        cell.strip()
-        for cell in (
-            line.strip()
+        x.strip()
+        for x in (
+            line
+            .strip()
             .strip("|")
             .split("|")
         )
@@ -360,54 +392,50 @@ def add_table(
     document,
     rows
 ):
+
     if not rows:
         return
 
-    column_count = max(
+    columns = max(
         len(row)
         for row in rows
     )
 
     table = document.add_table(
         rows=len(rows),
-        cols=column_count
+        cols=columns
     )
 
     table.style = (
         "Table Grid"
     )
 
-    table.autofit = True
-
     for row_index, row_data in enumerate(
         rows
     ):
-        row = (
-            table.rows[
-                row_index
-            ]
-        )
+
+        row = table.rows[
+            row_index
+        ]
 
         if row_index == 0:
             set_repeat_table_header(
                 row
             )
 
-        for column_index in range(
-            column_count
+        for col_index in range(
+            columns
         ):
+
             cell = (
                 row.cells[
-                    column_index
+                    col_index
                 ]
             )
 
             text = (
-                row_data[
-                    column_index
-                ]
-                if column_index
-                < len(row_data)
+                row_data[col_index]
+                if col_index < len(row_data)
                 else ""
             )
 
@@ -415,25 +443,17 @@ def add_table(
                 cell.paragraphs[0]
             )
 
-            paragraph.paragraph_format.space_after = Pt(
-                0
-            )
-
             add_inline_text(
                 paragraph,
                 text,
-                font_size=8
+                8
             )
 
             if row_index == 0:
+
                 set_cell_shading(
                     cell
                 )
-
-                for run in (
-                    paragraph.runs
-                ):
-                    run.bold = True
 
     document.add_paragraph()
 
@@ -443,87 +463,22 @@ def add_heading(
     text,
     level
 ):
-    if level == 1:
-        paragraph = document.add_heading(
-            level=1
-        )
-    elif level == 2:
-        paragraph = document.add_heading(
-            level=2
-        )
-    elif level == 3:
-        paragraph = document.add_heading(
-            level=3
-        )
-    else:
-        paragraph = document.add_heading(
-            level=4
-        )
 
-    add_inline_text(
-        paragraph,
+    paragraph = document.add_heading(
         text,
-        font_size={
-            1: 15,
-            2: 12.5,
-            3: 11,
-            4: 10.5,
-        }.get(
+        level=min(
             level,
-            10.5
+            4
         )
     )
 
-
-def add_paragraph(
-    document,
-    text
-):
-    paragraph = (
-        document.add_paragraph()
-    )
-
-    add_inline_text(
-        paragraph,
-        text
-    )
-
-
-def add_bullet(
-    document,
-    text
-):
-    paragraph = document.add_paragraph(
-        style="List Bullet"
-    )
-
-    add_inline_text(
-        paragraph,
-        text
-    )
-
-
-def add_numbered_item(
-    document,
-    text
-):
-    paragraph = document.add_paragraph(
-        style="List Number"
-    )
-
-    add_inline_text(
-        paragraph,
-        text
-    )
+    return paragraph
 
 
 def markdown_to_docx(
     report,
     docx_path
 ):
-    report = normalize_text(
-        report
-    )
 
     document = Document()
 
@@ -534,67 +489,40 @@ def markdown_to_docx(
     lines = report.splitlines()
 
     index = 0
-    first_heading = True
 
     while index < len(lines):
-        line = lines[
-            index
-        ].rstrip()
+
+        line = (
+            lines[index]
+            .rstrip()
+        )
 
         if not line.strip():
+
             index += 1
             continue
 
-        heading_match = re.match(
+
+        heading = re.match(
             r"^(#{1,6})\s+(.+)$",
             line
         )
 
-        if heading_match:
+        if heading:
+
             level = len(
-                heading_match.group(1)
+                heading.group(1)
             )
 
-            text = (
-                heading_match
-                .group(2)
-                .strip()
+            add_heading(
+                document,
+                heading.group(2),
+                level
             )
-
-            if (
-                level == 1
-                and first_heading
-            ):
-                title = (
-                    document.add_paragraph(
-                        style="Title"
-                    )
-                )
-
-                title.alignment = (
-                    WD_ALIGN_PARAGRAPH.CENTER
-                )
-
-                add_inline_text(
-                    title,
-                    text,
-                    font_size=20
-                )
-
-                first_heading = False
-
-            else:
-                add_heading(
-                    document,
-                    text,
-                    min(
-                        level,
-                        4
-                    )
-                )
 
             index += 1
             continue
+
 
         if (
             line.strip().startswith("|")
@@ -603,6 +531,7 @@ def markdown_to_docx(
                 lines[index + 1]
             )
         ):
+
             rows = [
                 parse_table_row(
                     line
@@ -617,6 +546,7 @@ def markdown_to_docx(
                 .strip()
                 .startswith("|")
             ):
+
                 rows.append(
                     parse_table_row(
                         lines[index]
@@ -625,6 +555,7 @@ def markdown_to_docx(
 
                 index += 1
 
+
             add_table(
                 document,
                 rows
@@ -632,88 +563,31 @@ def markdown_to_docx(
 
             continue
 
-        bullet_match = re.match(
-            r"^\s*[-*+]\s+(.+)$",
-            line
-        )
 
-        if bullet_match:
-            add_bullet(
-                document,
-                bullet_match.group(1)
+        if line.startswith("- "):
+
+            paragraph = document.add_paragraph(
+                style="List Bullet"
+            )
+
+            add_inline_text(
+                paragraph,
+                line[2:]
             )
 
             index += 1
             continue
 
-        numbered_match = re.match(
-            r"^\s*\d+\.\s+(.+)$",
+
+        paragraph = document.add_paragraph()
+
+        add_inline_text(
+            paragraph,
             line
         )
-
-        if numbered_match:
-            add_numbered_item(
-                document,
-                numbered_match.group(1)
-            )
-
-            index += 1
-            continue
-
-        paragraph_lines = [
-            line.strip()
-        ]
 
         index += 1
 
-        while index < len(lines):
-            next_line = (
-                lines[index]
-                .rstrip()
-            )
-
-            if not next_line.strip():
-                break
-
-            if re.match(
-                r"^(#{1,6})\s+",
-                next_line
-            ):
-                break
-
-            if re.match(
-                r"^\s*[-*+]\s+",
-                next_line
-            ):
-                break
-
-            if re.match(
-                r"^\s*\d+\.\s+",
-                next_line
-            ):
-                break
-
-            if (
-                next_line
-                .strip()
-                .startswith("|")
-            ):
-                break
-
-            paragraph_lines.append(
-                next_line.strip()
-            )
-
-            index += 1
-
-        paragraph_text = " ".join(
-            paragraph_lines
-        )
-
-        add_paragraph(
-            document,
-            paragraph_text
-        )
 
     document.save(
         str(docx_path)
@@ -725,42 +599,43 @@ def save_docx(
     filename,
     output_directory="output"
 ):
+
     output_dir = (
         get_output_directory(
             output_directory
         )
     )
 
-    docx_path = (
+    path = (
         output_dir
         / filename
     )
 
     markdown_to_docx(
         report,
-        docx_path
+        path
     )
 
-    return docx_path
+    return path
 
 
 def save_pdf_from_docx(
     docx_path,
     pdf_path
 ):
+
     try:
+
         convert(
             str(docx_path),
             str(pdf_path)
         )
 
     except Exception as exc:
+
         raise RuntimeError(
-            "DOCX was created successfully, "
-            "but PDF conversion failed. "
-            "Make sure Microsoft Word is "
-            "installed on this Windows computer."
-        ) from exc
+            f"PDF conversion failed: {exc}"
+        )
 
     return pdf_path
 
@@ -771,26 +646,16 @@ def save_report(
     provider_name=None,
     output_directory="output"
 ):
-    """
-    Save the completed research report and
-    structured supporting evidence.
-
-    Markdown is the primary artifact.
-
-    Evidence JSON, DOCX, and PDF are convenience
-    artifacts. Failure to create one of these
-    should not cause a completed research run
-    itself to be treated as failed.
-    """
 
     if not isinstance(
         result,
         ResearchResult
     ):
+
         raise TypeError(
-            "save_report expected a "
-            "ResearchResult."
+            "Expected ResearchResult"
         )
+
 
     timestamp = (
         datetime.now()
@@ -798,6 +663,7 @@ def save_report(
             "%Y%m%d_%H%M%S"
         )
     )
+
 
     target = safe_filename(
         target_company
@@ -808,100 +674,111 @@ def save_report(
         or result.provider
     )
 
+
     base_name = (
-        f"due_diligence_"
+        "due_diligence_"
         f"{target}_"
         f"{provider}_"
         f"{timestamp}"
     )
 
+
     warnings = []
 
-    # Markdown is the primary report artifact.
-    # Failure here means the report itself
-    # could not be saved, so propagate the error.
-    md_path = save_markdown(
+
+    final_report = append_source_appendix(
         result.text,
+        result.sources
+    )
+
+
+    markdown_path = save_markdown(
+        final_report,
         base_name + ".md",
         output_directory
     )
 
-    # Save structured citations, sources,
-    # and provider metadata.
+
     evidence_path = None
 
     try:
-        evidence_path = (
-            save_evidence_json(
-                result,
-                (
-                    base_name
-                    + "_evidence.json"
-                ),
-                output_directory
-            )
+
+        evidence_path = save_evidence_json(
+            result,
+            base_name
+            + "_evidence.json",
+            output_directory
         )
 
     except Exception as exc:
+
         warnings.append(
-            "Evidence JSON could not "
-            f"be saved: {exc}"
+            f"Evidence save failed: {exc}"
         )
 
-    # DOCX is a convenience artifact.
+
     docx_path = None
 
     try:
+
         docx_path = save_docx(
-            result.text,
+            final_report,
             base_name + ".docx",
             output_directory
         )
 
     except Exception as exc:
+
         warnings.append(
-            "DOCX could not be "
-            f"created: {exc}"
+            f"DOCX generation failed: {exc}"
         )
 
-    # PDF depends on a successfully
-    # generated DOCX file.
+
     pdf_path = None
 
-    if docx_path is not None:
 
-        output_dir = (
-            get_output_directory(
-                output_directory
-            )
-        )
-
-        pdf_path_candidate = (
-            output_dir
-            / (
-                base_name
-                + ".pdf"
-            )
-        )
+    if docx_path:
 
         try:
-            pdf_path = (
-                save_pdf_from_docx(
-                    docx_path,
-                    pdf_path_candidate
+
+            output_dir = (
+                get_output_directory(
+                    output_directory
                 )
             )
 
-        except Exception as exc:
-            warnings.append(
-                "PDF could not be "
-                f"created: {exc}"
+            pdf_path = save_pdf_from_docx(
+                docx_path,
+                output_dir
+                /
+                (
+                    base_name
+                    + ".pdf"
+                )
             )
 
+
+        except Exception as exc:
+
+            warnings.append(
+                f"PDF generation failed: {exc}"
+            )
+
+
     return {
-        "markdown": md_path,
-        "evidence": evidence_path,
-        "docx": docx_path,
-        "pdf": pdf_path,
-        "warnings": warnings,
+
+        "markdown":
+            markdown_path,
+
+        "evidence":
+            evidence_path,
+
+        "docx":
+            docx_path,
+
+        "pdf":
+            pdf_path,
+
+        "warnings":
+            warnings,
     }
