@@ -197,22 +197,22 @@ class PerplexityDeepResearchProvider(
         )
 
         timeout = self.config.get(
-    "timeout_seconds",
-    3600
-)
+            "timeout_seconds",
+            3600
+        )
 
-max_retries = self.config.get(
-    "max_retries",
-    3
-)
+        max_retries = self.config.get(
+            "max_retries",
+            3
+        )
 
-client = Perplexity(
-    api_key=self.api_key,
-    timeout=httpx.Timeout(
-        timeout
-    ),
-    max_retries=max_retries,
-)
+        client = Perplexity(
+            api_key=self.api_key,
+            timeout=httpx.Timeout(
+                timeout
+            ),
+            max_retries=max_retries,
+        )
 
         try:
 
