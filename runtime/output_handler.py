@@ -1,3 +1,4 @@
+import json
 import re
 from datetime import datetime
 from pathlib import Path
@@ -8,6 +9,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches, Pt
 from docx2pdf import convert
+
+from runtime.providers.base import (
+    ResearchResult
+)
 
 
 REPO_ROOT = (
@@ -97,6 +102,47 @@ def save_markdown(
 
     path.write_text(
         report,
+        encoding="utf-8"
+    )
+
+    return path
+
+
+def save_evidence_json(
+    result,
+    filename,
+    output_directory="output"
+):
+    """
+    Save provider citations, sources,
+    and research metadata as JSON.
+    """
+
+    output_dir = (
+        get_output_directory(
+            output_directory
+        )
+    )
+
+    path = (
+        output_dir
+        / filename
+    )
+
+    evidence = {
+        "provider": result.provider,
+        "citations": result.citations,
+        "sources": result.sources,
+        "metadata": result.metadata,
+    }
+
+    path.write_text(
+        json.dumps(
+            evidence,
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        ),
         encoding="utf-8"
     )
 
@@ -491,7 +537,9 @@ def markdown_to_docx(
     first_heading = True
 
     while index < len(lines):
-        line = lines[index].rstrip()
+        line = lines[
+            index
+        ].rstrip()
 
         if not line.strip():
             index += 1
@@ -718,11 +766,32 @@ def save_pdf_from_docx(
 
 
 def save_report(
-    report,
+    result,
     target_company,
-    provider_name,
+    provider_name=None,
     output_directory="output"
 ):
+    """
+    Save the completed research report and
+    structured supporting evidence.
+
+    Markdown is the primary artifact.
+
+    Evidence JSON, DOCX, and PDF are convenience
+    artifacts. Failure to create one of these
+    should not cause a completed research run
+    itself to be treated as failed.
+    """
+
+    if not isinstance(
+        result,
+        ResearchResult
+    ):
+        raise TypeError(
+            "save_report expected a "
+            "ResearchResult."
+        )
+
     timestamp = (
         datetime.now()
         .strftime(
@@ -736,6 +805,7 @@ def save_report(
 
     provider = safe_filename(
         provider_name
+        or result.provider
     )
 
     base_name = (
@@ -745,39 +815,93 @@ def save_report(
         f"{timestamp}"
     )
 
+    warnings = []
+
+    # Markdown is the primary report artifact.
+    # Failure here means the report itself
+    # could not be saved, so propagate the error.
     md_path = save_markdown(
-        report,
+        result.text,
         base_name + ".md",
         output_directory
     )
 
-    docx_path = save_docx(
-        report,
-        base_name + ".docx",
-        output_directory
-    )
+    # Save structured citations, sources,
+    # and provider metadata.
+    evidence_path = None
 
-    output_dir = (
-        get_output_directory(
+    try:
+        evidence_path = (
+            save_evidence_json(
+                result,
+                (
+                    base_name
+                    + "_evidence.json"
+                ),
+                output_directory
+            )
+        )
+
+    except Exception as exc:
+        warnings.append(
+            "Evidence JSON could not "
+            f"be saved: {exc}"
+        )
+
+    # DOCX is a convenience artifact.
+    docx_path = None
+
+    try:
+        docx_path = save_docx(
+            result.text,
+            base_name + ".docx",
             output_directory
         )
-    )
 
-    pdf_path = (
-        output_dir
-        / (
-            base_name
-            + ".pdf"
+    except Exception as exc:
+        warnings.append(
+            "DOCX could not be "
+            f"created: {exc}"
         )
-    )
 
-    save_pdf_from_docx(
-        docx_path,
-        pdf_path
-    )
+    # PDF depends on a successfully
+    # generated DOCX file.
+    pdf_path = None
+
+    if docx_path is not None:
+
+        output_dir = (
+            get_output_directory(
+                output_directory
+            )
+        )
+
+        pdf_path_candidate = (
+            output_dir
+            / (
+                base_name
+                + ".pdf"
+            )
+        )
+
+        try:
+            pdf_path = (
+                save_pdf_from_docx(
+                    docx_path,
+                    pdf_path_candidate
+                )
+            )
+
+        except Exception as exc:
+            warnings.append(
+                "PDF could not be "
+                f"created: {exc}"
+            )
 
     return {
         "markdown": md_path,
+        "evidence": evidence_path,
         "docx": docx_path,
         "pdf": pdf_path,
+        "warnings": warnings,
     }
