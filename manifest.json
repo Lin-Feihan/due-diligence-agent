@@ -1,7 +1,7 @@
 {
   "agent_id": "due-diligence-agent",
   "name": "Due Diligence Agent",
-  "description": "A Deep Research Agent for conducting corporate due diligence through multi-dimensional investigation, risk assessment, valuation and deal impact analysis, and evidence-based report generation.",
+  "description": "A Deep Research Agent for company due diligence, covering DD planning, key due diligence workstreams, risk assessment, valuation impact, and report generation.",
   "category": "M&A Research",
   "provider_note": "Runs on OpenAI / OpenRouter / Gemini / Perplexity Deep Research (configured server-side).",
   "estimated_runtime_seconds": 600,
